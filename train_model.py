@@ -23,9 +23,11 @@ def seed_everything(seed=2026):
     # Set NumPy's random seed so NumPy sampling is reproducible
     np.random.seed(seed)
 
+
 def take_fraction(paths, fraction=0.25):
     n = max(1, int(len(paths) * fraction))
     return paths[:n]
+
 
 def corresponding_image_path(lp, image_exts=(".tif", ".tiff", ".png", ".jpg", ".jpeg")):
     # Convert incoming label path to a Path object
@@ -250,6 +252,11 @@ def evaluate_model(model, label_paths, classes_eval=(1, 2, 3, 4, 5, 6, 7, 8), ma
     intersections = {c: 0 for c in classes_eval}
     unions = {c: 0 for c in classes_eval}
 
+    # confusion matrix: rows=true, cols=pred for classes 1..8 only
+    n_eval = len(classes_eval)
+    c2i = {c: k for k, c in enumerate(classes_eval)}
+    cm = np.zeros((n_eval, n_eval), dtype=np.int64)
+
     # Track overall pixel accuracy across all classes, including background
     total_pixels_all = 0
     correct_pixels_all = 0
@@ -286,6 +293,23 @@ def evaluate_model(model, label_paths, classes_eval=(1, 2, 3, 4, 5, 6, 7, 8), ma
             intersections[c] += int(np.logical_and(y_true == c, y_pred == c).sum())
             unions[c] += int(np.logical_or(y_true == c, y_pred == c).sum())
 
+        # Update confusion matrix
+        mask = np.isin(y_true, classes_eval)
+        yt = y_true[mask].astype(np.int64)
+        yp = y_pred[mask].astype(np.int64)
+
+        mask2 = np.isin(yp, classes_eval)
+        yt = yt[mask2]
+        yp = yp[mask2]
+
+        if yt.size > 0:
+            yt_i = np.vectorize(c2i.get)(yt)
+            yp_i = np.vectorize(c2i.get)(yp)
+            cm += np.bincount(
+                yt_i * n_eval + yp_i,
+                minlength=n_eval * n_eval
+            ).reshape(n_eval, n_eval)
+
         # Print occasional progress updates
         if (i + 1) % 25 == 0 or i == 0:
             print(f"Evaluated {i+1}/{len(use_paths)} tiles")
@@ -304,7 +328,40 @@ def evaluate_model(model, label_paths, classes_eval=(1, 2, 3, 4, 5, 6, 7, 8), ma
     # Overall pixel accuracy, including background
     acc = correct_pixels_all / (total_pixels_all + 1e-12)
 
-    return ious, miou, acc
+    return ious, miou, acc, cm
+
+
+def print_confusion_matrices(cm):
+    np.set_printoptions(suppress=True)
+
+    class_names = ["Bareland", "Grass", "Pavement", "Road", "Tree", "Water", "Cropland", "Buildings"]
+
+    print("\nConfusion Matrix (raw pixel counts) | rows=true, cols=pred (classes 1-8 only):")
+    header = "true\\pred".ljust(12) + " ".join([name[:10].rjust(10) for name in class_names])
+    print(header)
+    for i_row, name in enumerate(class_names):
+        row = name[:10].ljust(12) + " ".join([str(int(cm[i_row, j])).rjust(10) for j in range(cm.shape[1])])
+        print(row)
+
+    row_sums = cm.sum(axis=1, keepdims=True).astype(np.float64)
+    cm_row_pct = np.divide(cm, row_sums, out=np.zeros_like(cm, dtype=np.float64), where=row_sums != 0) * 100.0
+
+    print("\nConfusion Matrix (% of TRUE class) | each row sums to 100%:")
+    print(header)
+    for i_row, name in enumerate(class_names):
+        row = name[:10].ljust(12) + " ".join([f"{cm_row_pct[i_row, j]:9.2f}%"
+                                             for j in range(cm.shape[1])])
+        print(row)
+
+    total = float(cm.sum())
+    cm_global_pct = (cm / total * 100.0) if total > 0 else np.zeros_like(cm, dtype=np.float64)
+
+    print("\nConfusion Matrix (% of ALL evaluated pixels) | sums to 100% over all cells:")
+    print(header)
+    for i_row, name in enumerate(class_names):
+        row = name[:10].ljust(12) + " ".join([f"{cm_global_pct[i_row, j]:9.2f}%"
+                                             for j in range(cm.shape[1])])
+        print(row)
 
 
 def main():
@@ -322,9 +379,9 @@ def main():
     test_label_paths  = sorted(test_root.rglob("labels/*.tif"))
 
     # Keep only 25% of each split for quicker testing
-    train_label_paths = take_fraction(train_label_paths, 0.25)
-    val_label_paths = take_fraction(val_label_paths, 0.25)
-    test_label_paths = take_fraction(test_label_paths, 0.25)
+    # train_label_paths = take_fraction(train_label_paths)
+    # val_label_paths = take_fraction(val_label_paths)
+    # test_label_paths = take_fraction(test_label_paths)
 
     # Print how many tiles were found in each split
     print("Train tiles:", len(train_label_paths))
@@ -366,7 +423,7 @@ def main():
 
     # Evaluate on validation split
     print("\nEvaluating on validation set...")
-    val_ious, val_miou, val_acc = evaluate_model(
+    val_ious, val_miou, val_acc, val_cm = evaluate_model(
         model,
         val_label_paths,
         classes_eval=(1, 2, 3, 4, 5, 6, 7, 8),
@@ -380,9 +437,11 @@ def main():
     print(f"Validation mIoU (classes 1-8): {val_miou:.4f}")
     print(f"Validation overall pixel accuracy: {val_acc:.4f}")
 
+    # print_confusion_matrices(val_cm)
+
     # Evaluate on test split
     print("\nEvaluating on test set...")
-    test_ious, test_miou, test_acc = evaluate_model(
+    test_ious, test_miou, test_acc, test_cm = evaluate_model(
         model,
         test_label_paths,
         classes_eval=(1, 2, 3, 4, 5, 6, 7, 8),
@@ -395,6 +454,8 @@ def main():
         print(f"  class {c}: {test_ious[c]:.4f}")
     print(f"Test mIoU (classes 1-8): {test_miou:.4f}")
     print(f"Test overall pixel accuracy: {test_acc:.4f}")
+
+    print_confusion_matrices(test_cm)
 
 
 # Standard Python entry point
