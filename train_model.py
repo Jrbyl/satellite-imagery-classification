@@ -312,9 +312,9 @@ def main():
     seed_everything(2026)
 
     # Define dataset locations
-    train_root = Path("C:/satellite-imagery-classification/data/usa_europe_patches_512/train")
-    val_root   = Path("C:/satellite-imagery-classification/data/usa_europe_patches_512/val")
-    test_root  = Path("C:/satellite-imagery-classification/data/usa_europe_patches_512/test")
+    train_root = Path("./data/usa_europe_patches_512/train")
+    val_root   = Path("./data/usa_europe_patches_512/val")
+    test_root  = Path("./data/usa_europe_patches_512/test")
 
     # Find all label files in each split
     train_label_paths = sorted(train_root.rglob("labels/*.tif"))
