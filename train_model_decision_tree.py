@@ -10,10 +10,10 @@ import cv2
 import numpy as np
 import rasterio
 
-# Scikit-learn tools for building and training the linear perceptron pipeline
+# Scikit-learn tools for building and training the decision tree pipeline
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import Perceptron
+from sklearn.tree import DecisionTreeClassifier
 
 
 def seed_everything(seed=2026):
@@ -408,18 +408,19 @@ def main():
 
     # Build the model pipeline:
     #   1. Standardize features
-    #   2. Train a linear perceptron classifier
-    print("\nTraining linear perceptron...")
+    #   2. Train a decision tree classifier
+    print("\nTraining decision tree...")
     model = make_pipeline(
         StandardScaler(),
-        Perceptron(
-            max_iter=3000,
-            random_state=2026,
-            tol=1e-3,
+        DecisionTreeClassifier(
+            max_depth=12,
+            min_samples_split=20,
+            min_samples_leaf=10,
+            random_state=2026
         )
     )
 
-    # Fit the perceptron on sampled training pixels
+    # Fit the decision tree on sampled training pixels
     model.fit(X_train, y_train)
 
     # Evaluate on validation split
