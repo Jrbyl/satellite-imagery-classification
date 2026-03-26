@@ -413,7 +413,7 @@ def main():
     model = make_pipeline(
         StandardScaler(),
         LinearSVC(
-            max_iter=3000,
+            max_iter=4252,
             random_state=2026,
         )
     )
@@ -427,7 +427,6 @@ def main():
         model,
         val_label_paths,
         classes_eval=(1, 2, 3, 4, 5, 6, 7, 8),
-        max_tiles=100,   # change to None to evaluate the full validation set
     )
 
     # Print validation IoU results
@@ -445,7 +444,6 @@ def main():
         model,
         test_label_paths,
         classes_eval=(1, 2, 3, 4, 5, 6, 7, 8),
-        max_tiles=100,   # change to None to evaluate the full test set
     )
 
     # Print test IoU results
