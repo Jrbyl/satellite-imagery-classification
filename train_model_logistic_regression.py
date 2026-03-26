@@ -416,8 +416,6 @@ def main():
             max_iter=300,
             random_state=2026,
             solver="saga",
-            multi_class="multinomial",
-            n_jobs=-1,
         )
     )
 
