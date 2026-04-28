@@ -10,3 +10,4 @@ data/
 .python-version
 pyproject.toml
 uv.lock
+best_torchvision_model.pt
