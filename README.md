@@ -102,20 +102,20 @@ The training scripts now accept a `--device` flag:
 python train_model_logistic_regression.py --device auto
 python train_model_logistic_regression.py --device gpu
 python train_model_svm.py --device gpu
-python train_model_decision_tree.py --device cpu
+python train_model_decision_tree.py --device gpu
 ```
 
 Behavior:
 
 - `--device auto` uses a GPU backend when RAPIDS cuML is installed, otherwise it falls back to CPU.
-- `--device gpu` requires RAPIDS cuML for the logistic regression and SVM scripts.
-- The decision tree script still uses scikit-learn's `DecisionTreeClassifier`, so it remains CPU-only in this repository.
+- `--device gpu` requires RAPIDS cuML for the logistic regression, SVM, and decision-tree-style GPU path.
+- The decision tree GPU path uses `cuml.ensemble.RandomForestClassifier` with `n_estimators=1` as the closest supported GPU approximation to a single decision tree, so it is similar but not identical to scikit-learn's exact `DecisionTreeClassifier`.
 
 Important for this machine:
 
 - Native `scikit-learn` does not run these models on the GPU.
 - RAPIDS cuML support on Windows is provided through **WSL2**, not a native Windows Python environment.
-- If you want the GPU path, install RAPIDS inside a WSL2 Ubuntu environment and run the logistic regression or SVM script there with `--device gpu`.
+- If you want the GPU path, install RAPIDS inside a WSL2 Ubuntu environment and run the training scripts there with `--device gpu`.
 
 ## PyTorch Training
 

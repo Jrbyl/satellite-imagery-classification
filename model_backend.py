@@ -134,11 +134,31 @@ def resolve_decision_tree_backend(device):
     from sklearn.tree import DecisionTreeClassifier
 
     if device == "gpu":
-        raise RuntimeError(
-            "This repository's decision tree script still uses scikit-learn's "
-            "DecisionTreeClassifier, which runs on CPU. RAPIDS exposes GPU "
-            "alternatives for some classifiers, but not this exact training setup."
-        )
+        try:
+            from cuml.ensemble import RandomForestClassifier
+            from cuml.preprocessing import StandardScaler as CuStandardScaler
+
+            return SimplePipeline(
+                scaler=CuStandardScaler(output_type="numpy"),
+                estimator=RandomForestClassifier(
+                    n_estimators=2,
+                    max_depth=12,
+                    min_samples_split=20,
+                    min_samples_leaf=10,
+                    bootstrap=False,
+                    max_features=1.0,
+                    n_bins=128,
+                    random_state=2026,
+                    output_type="numpy",
+                ),
+                backend_name="RAPIDS cuML RandomForestClassifier(n_estimators=1) (GPU approximation)",
+            )
+        except ImportError:
+            raise RuntimeError(
+                "GPU execution was requested, but RAPIDS cuML is not installed. "
+                "On Windows, RAPIDS is supported through WSL2 rather than a native "
+                "Windows Python environment."
+            )
 
     return SimplePipeline(
         scaler=StandardScaler(),
