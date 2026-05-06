@@ -80,6 +80,8 @@ The original project proposal selected **logistic regression** as the machine le
 
 The reasoning given was that the data must be classified into one of several distinct classes, making it a classification task rather than a regression problem. The model is intended to classify image regions into categories such as grass, trees, pavement, and other land cover types.
 
+The repository now also includes a **PyTorch + TorchVision semantic segmentation** training script, which is a better fit for the image-mask patch dataset and can run directly on CUDA GPUs when PyTorch is installed with GPU support.
+
 ## Expected Outcomes
 
 The project aims to produce an efficient model capable of detecting a variety of land types from satellite imagery.
@@ -91,6 +93,45 @@ Expected outcomes include:
 - Visual outputs showing predicted segmentation masks overlaid on satellite images
 
 These results would demonstrate the model’s usefulness for real-world land classification tasks.
+
+## CPU and GPU Execution
+
+The training scripts now accept a `--device` flag:
+
+```bash
+python train_model_logistic_regression.py --device auto
+python train_model_logistic_regression.py --device gpu
+python train_model_svm.py --device gpu
+python train_model_decision_tree.py --device gpu
+```
+
+Behavior:
+
+- `--device auto` uses a GPU backend when RAPIDS cuML is installed, otherwise it falls back to CPU.
+- `--device gpu` requires RAPIDS cuML for the logistic regression, SVM, and decision-tree-style GPU path.
+- The decision tree GPU path uses `cuml.ensemble.RandomForestClassifier` with `n_estimators=1` as the closest supported GPU approximation to a single decision tree, so it is similar but not identical to scikit-learn's exact `DecisionTreeClassifier`.
+
+Important for this machine:
+
+- Native `scikit-learn` does not run these models on the GPU.
+- RAPIDS cuML support on Windows is provided through **WSL2**, not a native Windows Python environment.
+- If you want the GPU path, install RAPIDS inside a WSL2 Ubuntu environment and run the training scripts there with `--device gpu`.
+
+## PyTorch Training
+
+For GPU-native training with Torch/TorchVision, use:
+
+```bash
+python train_model_torchvision.py --device auto
+python train_model_torchvision.py --device cuda --batch-size 4 --num-epochs 20
+```
+
+Notes:
+
+- `train_model_torchvision.py` trains a `DeepLabV3-ResNet50` segmentation model on the paired TIFF image/mask patches.
+- `--device auto` uses CUDA when available and otherwise falls back to CPU.
+- The script reports train/validation/test loss, per-class IoU, mean IoU, and pixel accuracy.
+- The best validation checkpoint is saved to `best_torchvision_model.pt` by default.
 
 ## Team Members
 

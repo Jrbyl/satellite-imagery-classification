@@ -10,10 +10,7 @@ import cv2
 import numpy as np
 import rasterio
 
-# Scikit-learn tools for building and training the logistic regression pipeline
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
+from model_backend import parse_device_argument, resolve_logistic_regression_backend
 
 
 def seed_everything(seed=2026):
@@ -27,6 +24,11 @@ def seed_everything(seed=2026):
 def take_fraction(paths, fraction=0.25):
     n = max(1, int(len(paths) * fraction))
     return paths[:n]
+
+
+def print_progress(prefix, current, total):
+    pct = 100.0 * current / max(total, 1)
+    print(f"{prefix}: {current}/{total} ({pct:.1f}%)")
 
 
 def corresponding_image_path(lp, image_exts=(".tif", ".tiff", ".png", ".jpg", ".jpeg")):
@@ -216,8 +218,8 @@ def sample_training_pixels(label_paths, max_pixels_per_tile=1000, ignore_backgro
         y_list.append(y_tile[take])
 
         # Print occasional progress updates
-        if (i + 1) % 100 == 0 or i == 0:
-            print(f"Sampled training pixels from {i+1}/{len(label_paths)} tiles")
+        if (i + 1) % 25 == 0 or i == 0 or (i + 1) == len(label_paths):
+            print_progress("Training sample collection", i + 1, len(label_paths))
 
     # Safety check in case no samples were collected
     if len(X_list) == 0:
@@ -311,8 +313,8 @@ def evaluate_model(model, label_paths, classes_eval=(1, 2, 3, 4, 5, 6, 7, 8), ma
             ).reshape(n_eval, n_eval)
 
         # Print occasional progress updates
-        if (i + 1) % 25 == 0 or i == 0:
-            print(f"Evaluated {i+1}/{len(use_paths)} tiles")
+        if (i + 1) % 25 == 0 or i == 0 or (i + 1) == len(use_paths):
+            print_progress("Evaluation progress", i + 1, len(use_paths))
 
     # Convert intersection/union counts into final IoU values
     ious = {}
@@ -365,6 +367,9 @@ def print_confusion_matrices(cm):
 
 
 def main():
+    args = parse_device_argument()
+    model = resolve_logistic_regression_backend(args.device)
+
     # Set random seeds so results are reproducible
     seed_everything(2026)
 
@@ -406,18 +411,8 @@ def main():
     for u, c in zip(unique, counts):
         print(f"  class {u}: {c}")
 
-    # Build the model pipeline:
-    #   1. Standardize features
-    #   2. Train a multinomial logistic regression classifier
     print("\nTraining logistic regression...")
-    model = make_pipeline(
-        StandardScaler(),
-        LogisticRegression(
-            max_iter=4252,
-            random_state=2026,
-            solver="saga",
-        )
-    )
+    print(f"Model backend: {model.backend_name}")
 
     # Fit the logistic regression on sampled training pixels
     model.fit(X_train, y_train)
