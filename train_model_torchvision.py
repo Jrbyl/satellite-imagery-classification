@@ -33,7 +33,7 @@ CLASS_NAMES = [
 def get_args():
     parser = argparse.ArgumentParser(description="Train a TorchVision segmentation model")
     parser.add_argument("--seed", type=int, default=2026, help="random seed")
-    parser.add_argument("--num-epochs", type=int, default=20, help="number of epochs")
+    parser.add_argument("--num-epochs", type=int, default=1, help="number of epochs")
     parser.add_argument("--batch-size", type=int, default=4, help="batch size")
     parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
     parser.add_argument("--num-workers", type=int, default=0, help="DataLoader worker count")
